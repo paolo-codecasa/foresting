@@ -1,6 +1,6 @@
 # HOW DOES foresting.py WORK?
 
-# HOW IS MY CODE STRUCTURED
+# STRUCTURE
 ## Density field (using nbodykit)
 - Build box with regularly ordered k-values, give every point on the grid a magnitude (abs value of its position in fourier space) and a uniform random phase (0 to 2 $\pi$)
 - Transform the magnitudes according to the given power spectrum (which will be affected by the Eisenstein&Hu Transfer function $T(k)$ and a $\Lambda$CDM growth function $D(z)$ first, but might be replaced by ULA transferfunctions as in Marsh_2016 p.40) as in $P(|k|)$ (Ryden p.236)
@@ -23,3 +23,9 @@ with the Einstein coefficient $A_{21}$.
 
 ## Voigt absorption profile
 the Voigt absorption is a convolution of the Gaussian thermal broadening and the Lorentzian due to the absorption probability of neutral hydrogen. We use the scipy.wofz error function to find its values. The computation includes finding the wavelength corresponding to the velocity of the considered tracer (including hubble flow and peculiar velocity) according to $\lambda_{\text{obs}} = \lambda_\alpha \cdot \sqrt{\frac{1+\beta}{1-\beta}}$. The peak of the absorption is derived by Viel_2004 p.5 absorption peak formula $\tau_{\text{peak}} = \tau_0 \cdot \left( \frac{\rho}{\langle \rho \rangle} \right)^{\tau_s}$, with $\tau_0 \approx 0.03$ and $\tau_s \approx 2.7 \cdot \gamma$.
+
+## Statistics
+We compute the probability density functions for the matter and flux density distributions, the 1D and 3D flux power spectra as well as the wavelet scattering transforms of the forests using the kymatio package.
+
+## Fisher forecast
+we vary the axion fraction and use it to derive the uncertainties from both the flux power spectrum and the wavelet scattering transform.
