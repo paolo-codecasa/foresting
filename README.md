@@ -16,7 +16,14 @@ as in Tohfa_2024, Garzilli_2021, Viel_2004, Gaikwad_2020 (with the according var
 - the neutral hydrogen fractions can be computed with different levels of approximation, I implemented 2 of them for 1 < z < 5.5:
     - $x_{\text{HI}} = \frac{\alpha_A n_e}{\Gamma} = \frac{\rho}{\langle \rho \rangle} \frac{((1+z)/4)^3}{3^\cdot 10^4 \cdot 10^{10}}$ as in McQuinn_2016 p.7f, 16, 24, as well as $x_{\text{HI}} = 9.6\times 10^{-6}\, \Delta \frac{(1+\chi_{\text{He}})}{\Gamma_{-12}}\left(\frac{T}{10^{4}\text{K}}\right)^{-0.72}\left(\frac{\Omega_{\text{b}} h^2}{0.022}\right) \left(\frac{1-Y}{0.76}\right)\left(\frac{1+z}{5}\right)^{3}$ as in Bolton&Becker_2015 p.5 (assuming hydrogen ionization only $Y, \chi_{\text{He}}=0$, which is silly). Moreover Bird_2015 p.3 states; that neutral DLA's self shielding can be successfully modelled as a "Heaviside" function at a given density of $n_{\text{HI}} \approx 10^{−2} cm^{−3}$, which could be applied just as easily
     - since fake_spectra didn't read temperature but instead the internal energy of the tracers, which again depends on the neutral fraction, as well as on the metallicity and the ionization state of helium etc., using it became very intransperent and i decided to go for my own implementation as described here
-- the peculiar velocity field is easily derived from Agrawal_2017 p.9 $\vec{v}_{\text{pec}}(\vec{k})=i H f \frac{\vec{k}}{k^2} \delta_m(\vec{k})$, which is applied by nbodykit itself, of course we than add the Hubble flow derived from the position of the gridpoints in the comoving mesh space $\vec{v}_{\text{H}} = H(z) \vec{x}$
+- the peculiar velocity field is easily derived from Agrawal_2017 p.9 
+'''latex
+$\vec{v}_{\text{pec}}(\vec{k})=i H f \frac{\vec{k}}{k^2} \delta_m(\vec{k})$ ,
+'''
+which is applied by nbodykit itself, of course we than add the Hubble flow derived from the position of the gridpoints in the comoving mesh space
+'''latex
+$\vec{v}_{\text{H}} = H(z) \vec{x}$
+'''
 - the voigt profile is used to consider both the gaussian thermal broadening that we will derive from the defined temperatures and the lorentzian distributed probability of absorption or emission of a photon by a neutral hydrogen atom as described by gamma natural, which we find by
 $\gamma_{\text{nat}}=\frac{\lambda_\alpha^2 \cdot A_{21}}{2 \pi c^2}$,
 with the Einstein coefficient $A_{21}$.
