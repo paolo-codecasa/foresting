@@ -13,17 +13,16 @@ from numpy.linalg import inv
 from astropy import constants as c, units as u
 from scipy.special import wofz
 from scipy.optimize import curve_fit
-import gc # garbage collector
+import gc  # garbage collector
 
 # Enable LaTeX text rendering
-plt.rc('text', usetex=True)
-
+plt.rc("text", usetex=True)
 
 
 def plotSave(filename, dirName_plot, title, savefig=True):
     """
     Saves or displays the current matplotlib figure.
-    
+
     Parameters:
         filename (str): Name for the output file (without extension)
         dirName_plot (str): Directory to save the plot
@@ -43,18 +42,19 @@ def plotSave(filename, dirName_plot, title, savefig=True):
     # plt.show()
     plt.close()
 
+
 # ====================================================================================================================== FORESTING
 #################################################################################### FUNCTIONS FOR THE IGM PROPERTIES
-def temp(rho, Temp_0, gamma, mean_density): # T-ρ relation Viel_2004, garzilli_2015
+def temp(rho, Temp_0, gamma, mean_density):  # T-ρ relation Viel_2004, garzilli_2015
     """
     Computes temperature from density using a power-law relation.
-    
+
     Inputs:
         rho (Quantity): Gas density array [M_sun/kpc^3]
         Temp_0 (Quantity): Temperature normalization [K]
         gamma (float): Polytropic index
         mean_density (Quantity): Mean density of the field [M_sun/kpc^3]
-    
+
     Returns:
         T (Quantity): Temperature array [K], clipped to 1e-10-1e10 K
     """
@@ -63,16 +63,16 @@ def temp(rho, Temp_0, gamma, mean_density): # T-ρ relation Viel_2004, garzilli_
     return T
 
 
-def neutral_frac(rho, T, z, mean_density): # check Garzilli_2015 !
+def neutral_frac(rho, T, z, mean_density):  # check Garzilli_2015 !
     """
     Computes neutral hydrogen fraction based on density and temperature.
-    
+
     Inputs:
         rho (Quantity): Gas density array [M_sun/kpc^3]
         T (Quantity): Temperature array [K]
         z (float): Redshift
         mean_density (Quantity): Mean density of the field [M_sun/kpc^3]
-    
+
     Returns:
         xHI (Quantity): Neutral hydrogen density array [M_sun/kpc^3]
     """
@@ -97,11 +97,11 @@ def neutral_frac(rho, T, z, mean_density): # check Garzilli_2015 !
 def get_gamma_natural(lambda_0, A_21):
     """
     Calculates the natural line width (FWHM) in wavelength units.
-    
+
     Inputs:
         lambda_0 (Quantity): Rest wavelength [m]
         A_21 (Quantity): Einstein A-coefficient [s^-1]
-    
+
     Returns:
         gamma_natural (Quantity): FWHM in [Angstrom]
     """
@@ -109,10 +109,12 @@ def get_gamma_natural(lambda_0, A_21):
     return gamma_natural
 
 
-def find_absorbed_lambda(wavelength, vel_hubble_los, vel_pec_los, sigma, line, N_spectrum):
+def find_absorbed_lambda(
+    wavelength, vel_hubble_los, vel_pec_los, sigma, line, N_spectrum
+):
     """
     Finds wavelength range affected by absorption.
-    
+
     Inputs:
         wavelength (Quantity): Wavelength array [Angstrom]
         vel_hubble_los (Quantity): Hubble flow velocity [km/s]
@@ -120,7 +122,7 @@ def find_absorbed_lambda(wavelength, vel_hubble_los, vel_pec_los, sigma, line, N
         sigma (Quantity): Absorption width [Angstrom]
         line (Quantity): Rest wavelength [Angstrom]
         N_spectrum (int): Size of wavelength array
-    
+
     Returns:
         tuple: (start_index, end_index) of affected range
     """
@@ -128,7 +130,8 @@ def find_absorbed_lambda(wavelength, vel_hubble_los, vel_pec_los, sigma, line, N
         vel_hubble_los + vel_pec_los
     )  # Bird_2015 p.6 including hubble flow AND peculiar parallel velocity
     beta_rel = (v_tot.to(u.m / u.s) / c.c.to(u.m / u.s)).value
-    if 1-beta_rel<1e-10: beta_rel=1-1e-10
+    if 1 - beta_rel < 1e-10:
+        beta_rel = 1 - 1e-10
     lambda_received = line * np.sqrt((1 + beta_rel) / (1 - beta_rel))
     lambda_low = lambda_received - sigma
     lambda_high = lambda_received + sigma
@@ -153,13 +156,13 @@ def find_absorbed_lambda(wavelength, vel_hubble_los, vel_pec_los, sigma, line, N
 def get_hubble_vel_los(gridpoint_ind_LOS, com_distance_LOS, n_points_LOS, H_z):
     """
     Computes Hubble flow velocity along line of sight.
-    
+
     Inputs:
         gridpoint_ind_LOS (int): Grid index along LOS
         com_distance_LOS (Quantity): Comoving distance [Mpc]
         n_points_LOS (int): Number of grid points
         H_z (Quantity): Hubble parameter at redshift z [km/s/Mpc]
-    
+
     Returns:
         vel_hubble_flow (Quantity): Hubble velocity [km/s]
     """
@@ -174,12 +177,12 @@ def get_hubble_vel_los(gridpoint_ind_LOS, com_distance_LOS, n_points_LOS, H_z):
 def get_lambda_from_d(d, H_z, line):
     """
     Converts comoving distance to observed wavelength.
-    
+
     Inputs:
         d (Quantity): Comoving distance [Mpc]
         H_z (Quantity): Hubble parameter [km/s/Mpc]
         line (Quantity): Rest wavelength [Angstrom]
-    
+
     Returns:
         lambda_out (Quantity): Observed wavelength [Angstrom]
     """
@@ -194,10 +197,22 @@ def gaussian_profile(x, mu, sigma, amplitude):
     return amplitude * np.exp(-(x - mu).value ** 2 / (2 * sigma**2).value)
 
 
-def absorb_gauss(intensity, wavelength, density, temperature, velocity, N_grid, L_box, line, tau_0, tau_s, mean_density):   # should consider the density redshift relation during the delta-z = 0.0057
+def absorb_gauss(
+    intensity,
+    wavelength,
+    density,
+    temperature,
+    velocity,
+    N_grid,
+    L_box,
+    line,
+    tau_0,
+    tau_s,
+    mean_density,
+):  # should consider the density redshift relation during the delta-z = 0.0057
     """
     Applies Gaussian absorption profiles to a spectrum along a line of sight.
-    
+
     Inputs:
         intensity (array): Initial spectrum flux values
         wavelength (Quantity): Wavelength array [Angstrom]
@@ -210,7 +225,7 @@ def absorb_gauss(intensity, wavelength, density, temperature, velocity, N_grid, 
         tau_0 (float): Optical depth normalization
         tau_s (float): Optical depth exponent
         mean_density (Quantity): Mean density [M_sun/kpc^3]
-    
+
     Returns:
         intensity (array): Spectrum with applied absorption
     """
@@ -260,10 +275,26 @@ def voigt_profile(x, mu, sigma, gamma, amplitude):
     voigt = wofz(z).real / (sigma * np.sqrt(2 * np.pi))
     return amplitude * voigt.value
 
-def absorb_voigt(intensity, wavelength, density, temperature, velocity, N_spectrum, N_grid, L_box, H_z, line, A_21, tau_0, tau_s, mean_density):
+
+def absorb_voigt(
+    intensity,
+    wavelength,
+    density,
+    temperature,
+    velocity,
+    N_spectrum,
+    N_grid,
+    L_box,
+    H_z,
+    line,
+    A_21,
+    tau_0,
+    tau_s,
+    mean_density,
+):
     """
     Applies Voigt absorption profiles (combining Gaussian and Lorentzian) to a spectrum.
-    
+
     Inputs:
         intensity (array): Initial spectrum flux values
         wavelength (Quantity): Wavelength array [Angstrom]
@@ -279,7 +310,7 @@ def absorb_voigt(intensity, wavelength, density, temperature, velocity, N_spectr
         tau_0 (float): Optical depth normalization
         tau_s (float): Optical depth exponent
         mean_density (Quantity): Mean density [M_sun/kpc^3]
-    
+
     Returns:
         intensity (array): Spectrum with applied absorption
     """
@@ -318,23 +349,26 @@ def absorb_voigt(intensity, wavelength, density, temperature, velocity, N_spectr
                 tau_peak,
             )
             try:
-                if isinstance(tau_projected, u.Quantity): exponent=tau_projected.value
-                else: exponent=tau_projected
+                if isinstance(tau_projected, u.Quantity):
+                    exponent = tau_projected.value
+                else:
+                    exponent = tau_projected
                 intensity[j] = intensity[j] * np.exp(-exponent)
             except ValueError:
                 print(intensity[j])
     return intensity
 
+
 def organizeAbsorption(mpi_on, size, rank, N_los):
     """
     Organizes MPI work distribution for absorption calculation.
-    
+
     Inputs:
         mpi_on (bool): MPI flag
         size (int): Number of MPI processes
         rank (int): Current process rank
         N_los (int): Number of lines of sight per dimension
-    
+
     Returns:
         tuple: (direction, start_index, end_index) for current process
     """
@@ -342,21 +376,51 @@ def organizeAbsorption(mpi_on, size, rank, N_los):
         my_dir = rank % 3  # 0=x, 1=y, 2=z
         ranks_per_dir = size // 3
         rank_in_dir = rank // 3  # Position in direction group
-        
+
         total_los = N_los * N_los
         chunk_size = total_los // ranks_per_dir
         start = rank_in_dir * chunk_size
-        end = (rank_in_dir + 1) * chunk_size if rank_in_dir != (ranks_per_dir - 1) else total_los
-        
+        end = (
+            (rank_in_dir + 1) * chunk_size
+            if rank_in_dir != (ranks_per_dir - 1)
+            else total_los
+        )
+
         return my_dir, start, end
     else:
         # Serial case - process all directions
         return [0, 1, 2], 0, N_los * N_los
 
-def computeAbsorption(my_dir, start, end, N_grid, N_los, N_spectrum, L_box, res, file_mocks, HI, mocked, redshift, H_z, line, line_obs, lambda_margin, einstein_Acoeff, Temp_0, gamma, tau_0, tau_s, mpi_on, rank, dirName_out):
+
+def computeAbsorption(
+    my_dir,
+    start,
+    end,
+    N_grid,
+    N_los,
+    N_spectrum,
+    L_box,
+    res,
+    file_mocks,
+    HI,
+    mocked,
+    redshift,
+    H_z,
+    line,
+    line_obs,
+    lambda_margin,
+    einstein_Acoeff,
+    Temp_0,
+    gamma,
+    tau_0,
+    tau_s,
+    mpi_on,
+    rank,
+    dirName_out,
+):
     """
     Computes absorption spectra for assigned lines of sight.
-    
+
     Inputs:
         my_dir (int): Direction index (0=x,1=y,2=z)
         start/end (int): LOS range indices
@@ -380,43 +444,44 @@ def computeAbsorption(my_dir, start, end, N_grid, N_los, N_spectrum, L_box, res,
         tau_s (float): Optical depth exponent
         mpi_on (bool): MPI flag
         rank (int): MPI rank
-    
+
     Returns:
         tuple: (wavelength_array, spectra_array)
     """
     # Precompute wavelength range once
-    lambda_range = np.arange(
-        (line - lambda_margin).value,
-        (line_obs + lambda_margin).value,
-        res.value
-    ) * u.Angstrom
-    
+    lambda_range = (
+        np.arange(
+            (line - lambda_margin).value, (line_obs + lambda_margin).value, res.value
+        )
+        * u.Angstrom
+    )
+
     # Load density field ONCE
-    den_field = np.load(file_mocks["dens"]).reshape((N_grid, N_grid, N_grid), order='C')
+    den_field = np.load(file_mocks["dens"]).reshape((N_grid, N_grid, N_grid), order="C")
     if not mocked:
-        den_field *= 1e-9 
-    den_field = den_field * (u.M_sun / (u.kpc)**3)
+        den_field *= 1e-9
+    den_field = den_field * (u.M_sun / (u.kpc) ** 3)
     mean_density = np.mean(den_field)
-    
+
     # Load velocity field ONLY for needed direction
     file_vel = [file_mocks["vel_x"], file_mocks["vel_y"], file_mocks["vel_z"]][my_dir]
-    vel_field = np.load(file_vel).reshape((N_grid, N_grid, N_grid), order='C')
-    vel_field *= u.km/u.s
-    
+    vel_field = np.load(file_vel).reshape((N_grid, N_grid, N_grid), order="C")
+    vel_field *= u.km / u.s
+
     # Initialize spectra array
     chunk_size = end - start
     spectra = np.zeros((chunk_size, N_spectrum)) + 100.0
-    
+
     for idx_local, idx_global in enumerate(range(start, end)):
         j = idx_global // N_los
         k = idx_global % N_los
-        
+
         # Print progress (only from rank 0 in MPI mode)
         if (not mpi_on) or (rank == 0):
             if k == 0:
                 print(f"\n  {j}:", end=" ", flush=True)
             print(k, end=" ", flush=True)
-        
+
         # Get LOS slices
         if my_dir == 0:
             den_slice = den_field[:, j, k]
@@ -427,12 +492,17 @@ def computeAbsorption(my_dir, start, end, N_grid, N_los, N_spectrum, L_box, res,
         else:  # my_dir == 2
             den_slice = den_field[j, k, :]
             vel_slice = vel_field[j, k, :]
-        
+
         # Compute temperature and neutral fraction
         temp_slice = temp(den_slice, Temp_0, gamma, mean_density)
         if HI:
             absorber_slice = neutral_frac(den_slice, temp_slice, redshift, mean_density)
-            mean_density = neutral_frac(mean_density, temp(mean_density, Temp_0, gamma, mean_density), redshift, mean_density)
+            mean_density = neutral_frac(
+                mean_density,
+                temp(mean_density, Temp_0, gamma, mean_density),
+                redshift,
+                mean_density,
+            )
         else:
             absorber_slice = den_slice
 
@@ -454,26 +524,41 @@ def computeAbsorption(my_dir, start, end, N_grid, N_los, N_spectrum, L_box, res,
             mean_density=mean_density,
         )
 
-    dirName_allRanks = os.path.join(dirName_out, f"AllRanks_{N_grid}_{N_los}_{L_box.value}")
+    dirName_allRanks = os.path.join(
+        dirName_out, f"AllRanks_{N_grid}_{N_los}_{L_box.value}"
+    )
     os.makedirs(dirName_allRanks, exist_ok=True)
     filename = f"R{rank}_D{my_dir}_E{end}_S{start}"
     filepath = os.path.join(dirName_allRanks, filename)
     np.save(filepath, spectra)
-    
+
     # Clean up large arrays
     del den_field, vel_field
     gc.collect()
-    
-    if not mpi_on or rank==0:
+
+    if not mpi_on or rank == 0:
         print("\n\n", spectra.shape, spectra[0])
     if np.all(spectra == 0):
         print(f"\nWarning: Rank {rank} has all zero spectra!")
     return lambda_range, spectra
 
-def write_spectra_file(spectra, lambda_range, file_names, mpi_on, comm, size, rank, N_los, N_spectrum, start, end):
+
+def write_spectra_file(
+    spectra,
+    lambda_range,
+    file_names,
+    mpi_on,
+    comm,
+    size,
+    rank,
+    N_los,
+    N_spectrum,
+    start,
+    end,
+):
     """
     Writes absorption spectra to files.
-    
+
     Inputs:
         spectra (array): Absorption spectra
         lambda_range (Quantity): Wavelength array
@@ -488,63 +573,77 @@ def write_spectra_file(spectra, lambda_range, file_names, mpi_on, comm, size, ra
     """
     if mpi_on:
         from mpi4py import MPI
+
         if not isinstance(comm, MPI.Intracomm):
             raise ValueError(f"Invalid communicator of type {type(comm)}")
-        
+
         gathered_spectra = comm.gather(spectra, root=0)
-        
+
         if rank == 0:
             # Initialize full array
             final_spectra = np.zeros((3, N_los, N_los, N_spectrum))
             total_los = N_los * N_los
             ranks_per_dir = size // 3
             chunk_size = total_los // ranks_per_dir
-            
+
             # Reconstruct full array
             for r in range(size):
                 d = r % 3  # Direction (0=x,1=y,2=z)
                 rank_in_dir = r // 3
                 chunk_start = rank_in_dir * chunk_size
-                chunk_end = (rank_in_dir + 1) * chunk_size if rank_in_dir != (ranks_per_dir - 1) else total_los
-                
+                chunk_end = (
+                    (rank_in_dir + 1) * chunk_size
+                    if rank_in_dir != (ranks_per_dir - 1)
+                    else total_los
+                )
+
                 # Convert 1D indices back to 2D (j,k)
                 for idx in range(chunk_start, chunk_end):
                     j = idx // N_los
                     k = idx % N_los
-                    final_spectra[d,j,k,:] = gathered_spectra[r][idx-chunk_start,:]
+                    final_spectra[d, j, k, :] = gathered_spectra[r][
+                        idx - chunk_start, :
+                    ]
     else:
         # Serial case
         final_spectra = spectra.reshape((3, N_los, N_los, N_spectrum))
-    
+
     # Write to file (only root in MPI mode)
     if not mpi_on or rank == 0:
         # Debug: Verify we have data
         print(f"Debug - Final spectra shape: {final_spectra.shape}")
         print(f"Debug - Non-zero values: {np.count_nonzero(final_spectra)}")
-        
+
         for d in range(3):
             output_file = f"{file_names['specs'][d+1]}"
             print(f"Saving forests for direction {d} to {output_file}")
             os.makedirs(os.path.dirname(output_file), exist_ok=True)
-            
+
             with open(output_file, "w", newline="") as f:
-                writer = csv.writer(f, delimiter=" ", quotechar="|", quoting=csv.QUOTE_MINIMAL)
+                writer = csv.writer(
+                    f, delimiter=" ", quotechar="|", quoting=csv.QUOTE_MINIMAL
+                )
                 for j in range(N_los):
                     for k in range(N_los):
-                        if np.all(final_spectra[d,j,k,:] == 0):
+                        if np.all(final_spectra[d, j, k, :] == 0):
                             print(f"Warning: Zero spectra at d={d}, j={j}, k={k}")
-                        writer.writerow(final_spectra[d,j,k,:].round(6))
-        
+                        writer.writerow(final_spectra[d, j, k, :].round(6))
+
         # Write wavelength data
-        wavelength_file = file_names['specs'][0]
+        wavelength_file = file_names["specs"][0]
         with open(wavelength_file, "w", newline="") as f:
-            writer = csv.writer(f, delimiter=" ", quotechar="|", quoting=csv.QUOTE_MINIMAL)
+            writer = csv.writer(
+                f, delimiter=" ", quotechar="|", quoting=csv.QUOTE_MINIMAL
+            )
             writer.writerow(lambda_range[:N_spectrum].value)
 
-def write_den_file(d, N_los, N_grid, L_box, H_z, line, files_in, files_out, mpi_on, rank):
+
+def write_den_file(
+    d, N_los, N_grid, L_box, H_z, line, files_in, files_out, mpi_on, rank
+):
     """
     Writes density data to files.
-    
+
     Inputs:
         d (int): direction to save
         N_los (int): Number of lines of sight
@@ -556,12 +655,16 @@ def write_den_file(d, N_los, N_grid, L_box, H_z, line, files_in, files_out, mpi_
         files_out (dict): Output file paths
     """
     if not mpi_on or rank == 0:
-        den_field = np.load(files_in["dens"]).reshape((N_grid, N_grid, N_grid), order='C')
-        
+        den_field = np.load(files_in["dens"]).reshape(
+            (N_grid, N_grid, N_grid), order="C"
+        )
+
         print(f"Saving densities for direction {d}")
-        os.makedirs(os.path.dirname(files_out["dens"][d+1]), exist_ok=True)
+        os.makedirs(os.path.dirname(files_out["dens"][d + 1]), exist_ok=True)
         with open(f"{files_out['dens'][d+1]}", "w", newline="") as f:
-            writer = csv.writer(f, delimiter=" ", quotechar="|", quoting=csv.QUOTE_MINIMAL)
+            writer = csv.writer(
+                f, delimiter=" ", quotechar="|", quoting=csv.QUOTE_MINIMAL
+            )
             for j in range(N_los):
                 for k in range(N_los):
                     if d == 0:
@@ -571,24 +674,27 @@ def write_den_file(d, N_los, N_grid, L_box, H_z, line, files_in, files_out, mpi_
                     else:  # d == 2
                         den_slice = den_field[j, k, :]
                     writer.writerow(den_slice.round(6))
-        
+
         print("Saving position data")
         os.makedirs(os.path.dirname(files_out["dens"][0]), exist_ok=True)
         with open(files_out["dens"][0], "w", newline="") as f:
-            writer = csv.writer(f, delimiter=" ", quotechar="|", quoting=csv.QUOTE_MINIMAL)
+            writer = csv.writer(
+                f, delimiter=" ", quotechar="|", quoting=csv.QUOTE_MINIMAL
+            )
             x_pos = np.arange(0, L_box.value, L_box.value / N_grid)
             lambda_pos = get_lambda_from_d(x_pos * u.Mpc, H_z, line).value
             writer.writerow(lambda_pos)
+
 
 # ====================================================================================================================== READ
 def getParams(file_param, foresting):
     """
     Reads simulation parameters from file.
-    
+
     Inputs:
         file_param (str): Parameter file path
         foresting (bool): Flag for forest analysis
-    
+
     Returns:
         dict: Parameter dictionary with converted values
     """
@@ -616,7 +722,7 @@ def getParams(file_param, foresting):
 def getData(files, N_spectrum, N_grid, N_los, csv_on=True):
     """
     Reads spectral and density data from files.
-    
+
     Inputs:
         files (dict): Data file paths
         N_spectrum (int): Expected wavelength array size
@@ -635,8 +741,8 @@ def getData(files, N_spectrum, N_grid, N_los, csv_on=True):
             with open(file_path, "r", newline="") as p:
                 # Read all data at once (more efficient for grid data)
                 try:
-                    #data = np.loadtxt(p, delimiter=",")
-                    data = np.loadtxt(p, delimiter=" ")               
+                    # data = np.loadtxt(p, delimiter=",")
+                    data = np.loadtxt(p, delimiter=" ")
                     if data.shape != (N_los**2, N_spectrum):
                         raise ValueError(
                             f"File {file_path} has shape {data.shape}, expected (N_los², N_spectrum) = ({N_los**2}, {N_spectrum})"
@@ -665,7 +771,7 @@ def getData(files, N_spectrum, N_grid, N_los, csv_on=True):
             )
     else:
         lambda_range = np.load(files["specs"][0])
-    #N_los=30                                        #----------- WARNING!!! this is only because the NBK was killed before finish
+    N_los = 30  # ----------- WARNING!!! this is only because the NBK was killed before finish
     densities = np.empty((3, N_los, N_los, N_grid))
     for i, file_path in enumerate(files["dens"][1:]):
         if not os.path.exists(file_path):
@@ -685,7 +791,7 @@ def getData(files, N_spectrum, N_grid, N_los, csv_on=True):
         else:
             data = np.load(file_path)
             densities[i] = data.reshape(N_los, N_los, N_grid)
-            
+
     if np.array(densities).shape != (3, N_los, N_los, N_grid):
         raise ValueError(
             f"Final shape {np.array(densities).shape} doesn't match expected (3, N_grid, N_los²) = (3, {N_grid}, {N_los**2})"
@@ -707,10 +813,22 @@ def getData(files, N_spectrum, N_grid, N_los, csv_on=True):
     return forests, lambda_range, densities, x_for_den
 
 
-def plotForestsDens(lambda_range, forests, x_for_den, densities, line, line_obs, title, dirName_plot, filename, tot, losToPlot):
+def plotForestsDens(
+    lambda_range,
+    forests,
+    x_for_den,
+    densities,
+    line,
+    line_obs,
+    title,
+    dirName_plot,
+    filename,
+    tot,
+    losToPlot,
+):
     """
     Plots absorption spectra and density profiles.
-    
+
     Inputs:
         lambda_range (array): Wavelength values
         forests (array): Absorption spectra (3D)
@@ -732,19 +850,23 @@ def plotForestsDens(lambda_range, forests, x_for_den, densities, line, line_obs,
         or densities.shape[-1] != len(x_for_den)
         or forests.shape[-1] != len(lambda_range)
     ):
-        raise ValueError("forests and densities have wrong shapes:", forests.shape, densities.shape)
+        raise ValueError(
+            "forests and densities have wrong shapes:", forests.shape, densities.shape
+        )
 
     plt.figure(figsize=(14, 6))
     N_dir = np.min([losToPlot, 3])
-    if losToPlot==1:
+    if losToPlot == 1:
         alpha = 1
-        map_size=2
+        map_size = 2
     else:
-        alpha = np.max([0.005, 1/losToPlot]) # *.7
+        alpha = np.max([0.005, 1 / losToPlot])  # *.7
         map_size = losToPlot * losToPlot * N_dir
     cmap_dens = get_cmap("winter", lut=map_size)
     cmap_specs = get_cmap("autumn", lut=map_size)
-    colors_dens = cmap_dens(np.linspace(0, 1, map_size))           # double the number, to make it fit only half the map
+    colors_dens = cmap_dens(
+        np.linspace(0, 1, map_size)
+    )  # double the number, to make it fit only half the map
     colors_specs = cmap_specs(np.linspace(0, 1, map_size))
 
     if tot:
@@ -763,9 +885,11 @@ def plotForestsDens(lambda_range, forests, x_for_den, densities, line, line_obs,
                 for k in range(N_dir):  # 3):
                     plt.plot(
                         x_for_den,
-                        densities[k, i, j, :]/np.max(densities[:N_dir,:losToPlot,:losToPlot,:]) * 100,
+                        densities[k, i, j, :]
+                        / np.max(densities[:N_dir, :losToPlot, :losToPlot, :])
+                        * 100,
                         color=colors_dens[-(i * losToPlot * N_dir + j * N_dir + k)],
-                        alpha=alpha, #/0.7 if alpha != 1 else alpha,
+                        alpha=alpha,  # /0.7 if alpha != 1 else alpha,
                     )
         #
         # plt.xticks(ticks=[line, line_obs], labels=[r"Ly-$\alpha$", "obs"])
@@ -784,13 +908,15 @@ def plotForestsDens(lambda_range, forests, x_for_den, densities, line, line_obs,
                 ax_x.plot(
                     lambda_range,
                     forests[0, i, j, :],
-                    color=colors_specs[-(i * losToPlot * 3 + j * 3 )],
+                    color=colors_specs[-(i * losToPlot * 3 + j * 3)],
                     alpha=alpha,
                 )
                 ax_x.plot(
                     x_for_den,
-                    densities[0, i, j, :]/np.max(densities[0,:losToPlot,:losToPlot,:]) * 100,
-                    color=colors_dens[-(i * losToPlot * 3 + j * 3 )],
+                    densities[0, i, j, :]
+                    / np.max(densities[0, :losToPlot, :losToPlot, :])
+                    * 100,
+                    color=colors_dens[-(i * losToPlot * 3 + j * 3)],
                     alpha=alpha,
                 )
         ax_x.set_xticks(ticks=[line, line_obs], labels=[r"Ly-$\alpha$", "obs"])
@@ -808,7 +934,9 @@ def plotForestsDens(lambda_range, forests, x_for_den, densities, line, line_obs,
                 )
                 ax_y.plot(
                     x_for_den,
-                    densities[1, i, j, :]/np.max(densities[1,:losToPlot,:losToPlot,:]) * 100,
+                    densities[1, i, j, :]
+                    / np.max(densities[1, :losToPlot, :losToPlot, :])
+                    * 100,
                     color=colors_dens[-(i * losToPlot * 3 + j * 3)],
                     alpha=alpha,
                 )
@@ -827,7 +955,9 @@ def plotForestsDens(lambda_range, forests, x_for_den, densities, line, line_obs,
                 )
                 ax_z.plot(
                     x_for_den,
-                    densities[2, i, j, :]/np.max(densities[2,:losToPlot,:losToPlot,:]) * 100,
+                    densities[2, i, j, :]
+                    / np.max(densities[2, :losToPlot, :losToPlot, :])
+                    * 100,
                     color=colors_dens[-(i * losToPlot * 3 + j * 3)],
                     alpha=alpha,
                 )
@@ -869,10 +999,12 @@ def testSpectra(file_param, files, titlePlots, dirName_plot, foresting, tot):
     )
 
 
-def plotMock(L_box, N_grid, files, mocked, T_0, gamma, dirName_plot, title, savefig=True):
+def plotMock(
+    L_box, N_grid, files, mocked, T_0, gamma, dirName_plot, title, savefig=True
+):
     """
     Plots 2D slices of mock simulation data.
-    
+
     Inputs:
         L_box (float): Box size [Mpc/h]
         den_field (array): Density field
@@ -883,90 +1015,126 @@ def plotMock(L_box, N_grid, files, mocked, T_0, gamma, dirName_plot, title, save
         savefig (bool): Save figure flag
     """
     ## DENSITY SLICE
-    den_field = np.load(files["dens"]).reshape((N_grid, N_grid, N_grid), order='C')
+    den_field = np.load(files["dens"]).reshape((N_grid, N_grid, N_grid), order="C")
     if not mocked:
-        den_field *= 1e-9 
-    den_field = den_field * (u.M_sun / (u.kpc)**3)
+        den_field *= 1e-9
+    den_field = den_field * (u.M_sun / (u.kpc) ** 3)
     mean_density = np.mean(den_field)
     slice_index = N_grid // 2
-    den_slice = den_field[slice_index, :, :] #HI_den_field ###################################### 
+    den_slice = den_field[
+        slice_index, :, :
+    ]  # HI_den_field ######################################
     del den_field
     gc.collect()
 
     ## TEMPERATURE SLICE
     temp_slice = temp(den_slice, T_0, gamma, mean_density)
-    #print("shape temp_field: ", temp_field.shape, "temp_slice: ", temp_slice.shape)
+    # print("shape temp_field: ", temp_field.shape, "temp_slice: ", temp_slice.shape)
 
     ## VELOCITY SLICE
     plt.figure(figsize=(14, 6))
-    gs_vels = plt.GridSpec(1, 3, width_ratios=[1, 1, 1]) # Create grid for subplots
+    gs_vels = plt.GridSpec(1, 3, width_ratios=[1, 1, 1])  # Create grid for subplots
     file_vel = [files["vel_x"], files["vel_y"], files["vel_z"]]
     vel_mag_slice = 0
     for i, dir in enumerate(["x", "y", "z"]):
-        vel_field = np.load(file_vel[i]).reshape((N_grid, N_grid, N_grid), order='C')
-        vel_field *= u.km/u.s
+        vel_field = np.load(file_vel[i]).reshape((N_grid, N_grid, N_grid), order="C")
+        vel_field *= u.km / u.s
         vel_slice = vel_field[slice_index, :, :]  # Shape (3, N_grid, N_grid)
         vel_mag_slice += vel_slice**2
         ax = plt.subplot(gs_vels[:, i])  # Takes all rows of first column
-        if mocked: clipLow = 1e-3
-        else: clipLow = 1e1
+        if mocked:
+            clipLow = 1e-3
+        else:
+            clipLow = 1e1
         ocean_cmap = plt.cm.ocean
         half_ocean = mcolors.LinearSegmentedColormap.from_list(
-            'half_ocean', ocean_cmap(np.linspace(0.4, .75, 256))
+            "half_ocean", ocean_cmap(np.linspace(0.4, 0.75, 256))
         )
-        #im = ax.imshow(np.log10(np.clip(np.abs(vel_slice.value),clipLow,None)), origin='lower', cmap=half_ocean, extent=[0, L_box, 0, L_box])
-        #im = ax.imshow(np.log10(np.clip(np.abs(vel_slice.value),clipLow,None)), origin='lower', cmap=half_ocean, extent=[0, L_box, 0, L_box])
-        #im = ax.imshow(np.log10(np.clip(np.abs(vel_slice.value),clipLow,None)), origin='lower', cmap="cool", extent=[0, L_box, 0, L_box])
-        im = ax.imshow(np.log10(np.clip(np.abs(vel_slice.value),clipLow,None)), origin='lower', cmap="plasma", extent=[0, L_box, 0, L_box])
+        # im = ax.imshow(np.log10(np.clip(np.abs(vel_slice.value),clipLow,None)), origin='lower', cmap=half_ocean, extent=[0, L_box, 0, L_box])
+        # im = ax.imshow(np.log10(np.clip(np.abs(vel_slice.value),clipLow,None)), origin='lower', cmap=half_ocean, extent=[0, L_box, 0, L_box])
+        # im = ax.imshow(np.log10(np.clip(np.abs(vel_slice.value),clipLow,None)), origin='lower', cmap="cool", extent=[0, L_box, 0, L_box])
+        im = ax.imshow(
+            np.log10(np.clip(np.abs(vel_slice.value), clipLow, None)),
+            origin="lower",
+            cmap="plasma",
+            extent=[0, L_box, 0, L_box],
+        )
         plt.colorbar(im, ax=ax, shrink=0.8)
-        not_dir = ["x", "y", "z"][:i] + ["x", "y", "z"][i+1:]
-        ax.set_xlabel(f'{not_dir[0]} [Mpc/h]')
-        ax.set_ylabel(f'{not_dir[1]} [Mpc/h]')
+        not_dir = ["x", "y", "z"][:i] + ["x", "y", "z"][i + 1 :]
+        ax.set_xlabel(f"{not_dir[0]} [Mpc/h]")
+        ax.set_ylabel(f"{not_dir[1]} [Mpc/h]")
         unit = r"$\mathrm{log}_{10}(\mathrm{km/s})$"
-        ax.set_title(f'Velocity Slice {dir} [{unit}]')
+        ax.set_title(f"Velocity Slice {dir} [{unit}]")
     plotSave("mock_velComps", dirName_plot, title, savefig=savefig)
 
-    vel_mag_slice = np.sqrt(vel_mag_slice) # Take slice and calculate magnitude
-    #print("shape vel_field: ", vel_field.shape, "vel_mag_slice: ", vel_mag_slice.shape)
-
+    vel_mag_slice = np.sqrt(vel_mag_slice)  # Take slice and calculate magnitude
+    # print("shape vel_field: ", vel_field.shape, "vel_mag_slice: ", vel_mag_slice.shape)
 
     plt.figure(figsize=(14, 6))
-    gs_mock = plt.GridSpec(1, 3, width_ratios=[1, 1, 1]) # Create grid for subplots
+    gs_mock = plt.GridSpec(1, 3, width_ratios=[1, 1, 1])  # Create grid for subplots
 
     # Density plot (left)
     ax_rho = plt.subplot(gs_mock[:, 0])  # Takes all rows of first column
-    im_rho = ax_rho.imshow(np.log10(np.clip(den_slice.value,1e-2,None)), origin='lower', cmap='viridis', extent=[0, L_box, 0, L_box])
+    im_rho = ax_rho.imshow(
+        np.log10(np.clip(den_slice.value, 1e-2, None)),
+        origin="lower",
+        cmap="viridis",
+        extent=[0, L_box, 0, L_box],
+    )
     plt.colorbar(im_rho, ax=ax_rho, shrink=0.8)
-    ax_rho.set_xlabel('y [Mpc/h]')
-    ax_rho.set_ylabel('z [Mpc/h]')
+    ax_rho.set_xlabel("y [Mpc/h]")
+    ax_rho.set_ylabel("z [Mpc/h]")
     unit = r"$\mathrm{log}_{10}(M_{\mathrm{sun}} \mathrm{Mpc}^{-3} h^3)$"
-    ax_rho.set_title(f'Density Slice [{unit}]')    
+    ax_rho.set_title(f"Density Slice [{unit}]")
 
     # Velocity magnitude (middle)
     ax_vel = plt.subplot(gs_mock[:, 1])
-    im_v = ax_vel.imshow(np.log10(np.clip(vel_mag_slice.value,1e1,None)), origin='lower', cmap='plasma', extent=[0, L_box, 0, L_box])
+    im_v = ax_vel.imshow(
+        np.log10(np.clip(vel_mag_slice.value, 1e1, None)),
+        origin="lower",
+        cmap="plasma",
+        extent=[0, L_box, 0, L_box],
+    )
     plt.colorbar(im_v, ax=ax_vel, shrink=0.8)
-    ax_vel.set_xlabel('y [Mpc/h]')
+    ax_vel.set_xlabel("y [Mpc/h]")
     unit = r"$\mathrm{log}_{10}(\mathrm{km/s})$"
-    ax_vel.set_title('Velocity magnitude [{unit}]')
+    ax_vel.set_title("Velocity magnitude [{unit}]")
 
     # Temperature (right)
     ax_temp = plt.subplot(gs_mock[:, 2])
-    im_temp = ax_temp.imshow(np.log10(np.clip(temp_slice.value,1e3,None)), origin='lower', cmap='inferno', extent=[0, L_box, 0, L_box])
+    im_temp = ax_temp.imshow(
+        np.log10(np.clip(temp_slice.value, 1e3, None)),
+        origin="lower",
+        cmap="inferno",
+        extent=[0, L_box, 0, L_box],
+    )
     plt.colorbar(im_temp, ax=ax_temp, shrink=0.8)
-    ax_temp.set_xlabel('y [Mpc/h]')
+    ax_temp.set_xlabel("y [Mpc/h]")
     unit = r"$\mathrm{log}_{10}(\mathrm{K})$"
-    ax_temp.set_title('Temperature [{unit}]')
-    
+    ax_temp.set_title("Temperature [{unit}]")
+
     plotSave("mock_DenVelTemp", dirName_plot, title, savefig=savefig)
 
 
 #################################################################################### HOW TO COMPUTE PROBABILITY DENSITY FUNCTION
 
-def plotPDF(data, nbinsPDF, range, x_label, title, dirName_plot, save_to, filename, xlog=True, ylog=False, savefig=True):
+
+def plotPDF(
+    data,
+    nbinsPDF,
+    range,
+    x_label,
+    title,
+    dirName_plot,
+    save_to,
+    filename,
+    xlog=True,
+    ylog=False,
+    savefig=True,
+):
     """
     Calculates and plots probability density function.
-    
+
     Inputs:
         data (array): Input data
         nbinsPDF (int): Number of bins
@@ -978,41 +1146,47 @@ def plotPDF(data, nbinsPDF, range, x_label, title, dirName_plot, save_to, filena
         ylog (bool): Log y-scale flag
         savefig (bool): Save figure flag
     """
-    all_flux = data.flatten() 
+    all_flux = data.flatten()
 
-    print("densities zero?", np.any(all_flux == 0)) 
+    print("densities zero?", np.any(all_flux == 0))
 
-
-    if xlog: bins = np.logspace(range[0], range[1], nbinsPDF)
-    else: bins = np.linspace(range[0], range[1], nbinsPDF)
+    if xlog:
+        bins = np.logspace(range[0], range[1], nbinsPDF)
+    else:
+        bins = np.linspace(range[0], range[1], nbinsPDF)
     counts, bin_edges = np.histogram(all_flux, bins=bins)
     pdf = counts / counts.sum()  # Normalize to probability density
     np.save(f"{save_to}_{filename}", {"x": bin_edges, "y": pdf}, allow_pickle=True)
 
     plt.figure(figsize=(6, 4))
     bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-    plt.scatter(bin_centers, pdf, marker='x', s=3, c="red")
+    plt.scatter(bin_centers, pdf, marker="x", s=3, c="red")
 
-    if xlog: plt.xscale('log')
-    if ylog: plt.yscale('log')
+    if xlog:
+        plt.xscale("log")
+    if ylog:
+        plt.yscale("log")
     plt.xlabel(x_label)
     plt.ylabel(r"$N_\mathrm{cells}$")
-    
+
     plotSave(f"pdf_{filename}", dirName_plot, title, savefig)
-
-
-
-
 
 
 # ====================================================================================================================== ANALYZE
 
+
 def format_value(value, format_spec=""):
-    return "" if value is None else (format(value, format_spec) if format_spec else str(value))
+    return (
+        ""
+        if value is None
+        else (format(value, format_spec) if format_spec else str(value))
+    )
+
 
 def get_ticks(total_length, step):
     n_ticks = total_length // step
-    return np.linspace(0, total_length-1, n_ticks, dtype=int)
+    return np.linspace(0, total_length - 1, n_ticks, dtype=int)
+
 
 #################################################################################### HOW TO BIN AND SAMPLE
 def sample_k(k_min, k_max, nbins, N_spectrum, log_binning=True):
@@ -1116,13 +1290,14 @@ def fftPower_1d(delta, kz, kbins_edges, L, nbins, sigma_filter):
     # Pk_binned, _, _ = binned_statistic(kz, Pk, statistic='mean', bins=kbins_edges)
     # Pk_binned *= np.diff(kbins_edges)          # wrong!
 
-    if (len(kz)>len(kbins_edges)):
+    if len(kz) > len(kbins_edges):
         # general version for both lin and log binning
         counts, _, _ = binned_statistic(kz, Pk, statistic="count", bins=kbins_edges)
         Pk_sum, _, _ = binned_statistic(kz, Pk, statistic="sum", bins=kbins_edges)
         # if np.where(counts<=0,1,0).any(): raise ValueError("there are empty bins, increase number of values!")
         Pk_binned = np.where(counts > 0, Pk_sum / counts, 0.0)
-    else: Pk_binned = Pk[:-1]
+    else:
+        Pk_binned = Pk[:-1]
     return Pk_binned
 
 
@@ -1144,7 +1319,9 @@ def compute_all_1d_power_spectra(
     N_los = len(forests[0, :, 0, 0])
 
     # Initialize output array
-    all_Pk = np.empty((3, N_los, N_los, N_grid // 2 ))  # divided by 2 because k sampling for real FFT will divide by 2 (undersampling)
+    all_Pk = np.empty(
+        (3, N_los, N_los, N_grid // 2)
+    )  # divided by 2 because k sampling for real FFT will divide by 2 (undersampling)
 
     mean_spectrum = np.mean(forests)
     # Compute for each line of sight
@@ -1189,7 +1366,9 @@ def oneD_to_threeD_powSpectr(P_1D, kbins_centers, sigma_filter):
     # P_3D = (-2*np.pi/k) * np.gradient(P_1D, binSizes, axis = 3)  # shape of P_1D: (3, N_los, N_los, N_spectrum/2) # ------ OLD
     # P_1D = gaussian_filter1d(P_1D, sigma=30, axis=-1, truncate=1.) # doesnt seem to affect anything... weird
     if sigma_filter != None:
-        P_1D = gaussian_filter1d(P_1D, sigma=sigma_filter, axis=-1, truncate=1.)          # *= gauss_W(kbins_centers, sigma_filter) ** 2
+        P_1D = gaussian_filter1d(
+            P_1D, sigma=sigma_filter, axis=-1, truncate=1.0
+        )  # *= gauss_W(kbins_centers, sigma_filter) ** 2
     log_k = np.log(np.clip(kbins_centers, 1e-30, None))  # Avoid log(0)
     log_P1D = np.log(np.clip(P_1D, 1e-30, None))  # Avoid log(0)
     print("shapes Pk, k: ", log_P1D.shape, log_k.shape)
@@ -1197,7 +1376,7 @@ def oneD_to_threeD_powSpectr(P_1D, kbins_centers, sigma_filter):
     P_3D = (
         dlogP_dlogk * P_1D / (kbins_centers)
     )  # [..., None]  # shape-safe division -----> need to divide by k^2! not only k
-    P_3D *= -2 * np.pi / kbins_centers 
+    P_3D *= -2 * np.pi / kbins_centers
     # P_3D = gauss_filter1d(P_3D, kbins_centers, 14.)
     return P_3D
 
@@ -1222,15 +1401,15 @@ def convert_k_to_velocity_space(k_h_per_Mpc, redshift, H_z):
 def converge(k, fk, fit, dir, shape):
     fk_tot = np.empty((8, len(k)))
     mask = (~np.isnan(fk)) & (fk > 0)
-    #print("shape fk:", fk.shape, "shape mask:", mask.shape, fk[mask].shape)
+    # print("shape fk:", fk.shape, "shape mask:", mask.shape, fk[mask].shape)
 
     for i in range(fk.shape[-1]):  # Loop through spectrum
         for a in range(dir):
-            #print("shape fk[a,:,:i]:", fk[a,:,:,i].shape, "shape mask[a,:,:i]:", mask[a,:,:,i].shape)
-            #print(fk[a,:,:,i][mask[a,:,:,i]].shape)
-            fk_tot[a + 1,i] = np.mean(fk[a,:,:,i][mask[a,:,:,i]])
-            fk_tot[a + dir + 1,i] = np.median(fk[a,:,:,i][mask[a,:,:,i]])
-        fk_tot[0,i] = np.mean(fk[:,:,:,i][mask[:,:,:,i]])  # total mean
+            # print("shape fk[a,:,:i]:", fk[a,:,:,i].shape, "shape mask[a,:,:i]:", mask[a,:,:,i].shape)
+            # print(fk[a,:,:,i][mask[a,:,:,i]].shape)
+            fk_tot[a + 1, i] = np.mean(fk[a, :, :, i][mask[a, :, :, i]])
+            fk_tot[a + dir + 1, i] = np.median(fk[a, :, :, i][mask[a, :, :, i]])
+        fk_tot[0, i] = np.mean(fk[:, :, :, i][mask[:, :, :, i]])  # total mean
     fk_tot[7] = fit  # include fit
     return fk_tot
 
@@ -1325,7 +1504,7 @@ def compute_all_1d_WST(
         Q=Q,  # Q = (Q1, Q2=1) are number of wavelets per octave for 1st and 2nd order
         T=sigma_filter_WST,  # temporal support of low-pass filter: imposed time-shift invariance and maximum subsampling
         max_order=order,  # max order of scattering coefficients (either 1 or 2)
-        #average=None,  # whether output is averaged in time (default) or not
+        # average=None,  # whether output is averaged in time (default) or not
         oversampling=0,  # WST reduces high-frequency content of signal -> we subsample. If not wanted, set oversampling to large value
         out_type=out_type,  # ‘list’: outputs list with individual coeffs and meta information. 'array': outputs concatenated array
         backend="numpy",  #
@@ -1402,6 +1581,7 @@ def setup_plot(ax, xlabel, ylabel, a=None):
     # ax.xaxis.set_major_formatter(plt.FormatStrFormatter('%.2e'))
     ax.legend(loc="lower left")
 
+
 def plotPowSpectr(
     x,
     y,
@@ -1436,48 +1616,75 @@ def plotPowSpectr(
 
     if summary:
         plt.figure(num=1, figsize=(9, 12), clear=True)
-        
+
         if oneD:
             y_masked = y[:, :, :, mask]  # Shape: (3, N_los, N_los, N_spectrum_masked)
-            mean_per_bin = np.mean(y_masked, axis=(0, 1, 2))  # Shape: (N_spectrum_masked,)
+            mean_per_bin = np.mean(
+                y_masked, axis=(0, 1, 2)
+            )  # Shape: (N_spectrum_masked,)
             std_above = np.zeros_like(mean_per_bin)
             std_below = np.zeros_like(mean_per_bin)
-            for i in range(len(mean_per_bin)): 
+            for i in range(len(mean_per_bin)):
                 los_values = y_masked[:, :, :, i].flatten()
                 above_mean = los_values[los_values > mean_per_bin[i]]
                 below_mean = los_values[los_values < mean_per_bin[i]]
-                std_above[i] = np.sqrt(np.mean(np.clip((above_mean - mean_per_bin[i])**2, 0,1e-2 - 1e-5))) if len(above_mean) > 0 else 0
-                std_below[i] = np.sqrt(np.mean(np.clip((below_mean - mean_per_bin[i])**2, 0,1e-2 - 1e-5))) if len(below_mean) > 0 else 0
-                if (np.isnan(std_below[i])) or (std_below[i] < 0): std_below[i]=0
-                if (np.isnan(std_above[i])) or (std_above[i] < 0): std_above[i]=0
+                std_above[i] = (
+                    np.sqrt(
+                        np.mean(
+                            np.clip((above_mean - mean_per_bin[i]) ** 2, 0, 1e-2 - 1e-5)
+                        )
+                    )
+                    if len(above_mean) > 0
+                    else 0
+                )
+                std_below[i] = (
+                    np.sqrt(
+                        np.mean(
+                            np.clip((below_mean - mean_per_bin[i]) ** 2, 0, 1e-2 - 1e-5)
+                        )
+                    )
+                    if len(below_mean) > 0
+                    else 0
+                )
+                if (np.isnan(std_below[i])) or (std_below[i] < 0):
+                    std_below[i] = 0
+                if (np.isnan(std_above[i])) or (std_above[i] < 0):
+                    std_above[i] = 0
             plt.errorbar(
-                x[mask], y_tot[0][mask], yerr=(std_below, std_above), 
-                label="Mean overall", c="darkviolet", alpha=.2,
+                x[mask],
+                y_tot[0][mask],
+                yerr=(std_below, std_above),
+                label="Mean overall",
+                c="darkviolet",
+                alpha=0.2,
             )
         for a, dir in enumerate(["x", "y", "z"]):
             for b in np.random.randint(low=0, high=len(y[0, :, 0]), size=losToPlot):
                 for c in np.random.randint(low=0, high=len(y[0, 0, :]), size=losToPlot):
-                    plt.scatter(
-                        x, y[a, b, c], alpha=0.3, c="grey", s=4
-                    )
-            plt.loglog(x[(~np.isnan(y_tot[a + 1])) & (y_tot[a + 1] > 0)],
-                            y_tot[a + 1][(~np.isnan(y_tot[a + 1])) & (y_tot[a + 1] > 0)],
-                            label=f"mean in LOS {dir}", c=colors[a], alpha=.6, lw=2)
+                    plt.scatter(x, y[a, b, c], alpha=0.3, c="grey", s=4)
+            plt.loglog(
+                x[(~np.isnan(y_tot[a + 1])) & (y_tot[a + 1] > 0)],
+                y_tot[a + 1][(~np.isnan(y_tot[a + 1])) & (y_tot[a + 1] > 0)],
+                label=f"mean in LOS {dir}",
+                c=colors[a],
+                alpha=0.6,
+                lw=2,
+            )
             """plt.loglog(
                 x[(~np.isnan(y_tot[a + dir + 1])) & (y_tot[a + dir + 1] > 0)],
                 y_tot[a + dir + 1][(~np.isnan(y_tot[a + dir + 1])) & (y_tot[a + dir + 1] > 0)],
                 label=f"median in LOS {a}", c=colors[a + dir]
             )"""
 
-        plt.loglog(
-            x[mask], y_tot[0][mask], 
-            label="Mean overall", c="black", lw=2
-        )
-        
+        plt.loglog(x[mask], y_tot[0][mask], label="Mean overall", c="black", lw=2)
+
         if fit:
-            plt.loglog(x[(~np.isnan(y_tot[7])) & (y_tot[7] > 0)],
-                       y_tot[7][(~np.isnan(y_tot[7])) & (y_tot[7] > 0)],
-                       label=f"fit overall", c="black")
+            plt.loglog(
+                x[(~np.isnan(y_tot[7])) & (y_tot[7] > 0)],
+                y_tot[7][(~np.isnan(y_tot[7])) & (y_tot[7] > 0)],
+                label=f"fit overall",
+                c="black",
+            )
         plt.xlabel(x_label)
         plt.ylabel(y_label)
         plt.ylim(bottom=1e-6)
@@ -1491,22 +1698,29 @@ def plotPowSpectr(
                     ax[a].scatter(
                         x, y[a, b, c], alpha=0.3, c="grey", linewidth=0.5, s=4
                     )
-            ax[a].loglog(x[(~np.isnan(y_tot[a + 1])) & (y_tot[a + 1] > 0)],
-                         y_tot[a + 1][(~np.isnan(y_tot[a + 1])) & (y_tot[a + 1] > 0)],
-                         label=f"mean in LOS {a}", c=colors[a])
+            ax[a].loglog(
+                x[(~np.isnan(y_tot[a + 1])) & (y_tot[a + 1] > 0)],
+                y_tot[a + 1][(~np.isnan(y_tot[a + 1])) & (y_tot[a + 1] > 0)],
+                label=f"mean in LOS {a}",
+                c=colors[a],
+            )
             ax[a].loglog(
                 x[(~np.isnan(y_tot[a + dir + 1])) & (y_tot[a + dir + 1] > 0)],
-                y_tot[a + dir + 1][(~np.isnan(y_tot[a + dir + 1])) & (y_tot[a + dir + 1] > 0)],
-                label=f"median in LOS {a}", c=colors[a + dir]
+                y_tot[a + dir + 1][
+                    (~np.isnan(y_tot[a + dir + 1])) & (y_tot[a + dir + 1] > 0)
+                ],
+                label=f"median in LOS {a}",
+                c=colors[a + dir],
             )
-            
-            ax[a].loglog(x[mask],
-                         y_tot[0][mask],
-                         label=f"mean overall", c="black")
+
+            ax[a].loglog(x[mask], y_tot[0][mask], label=f"mean overall", c="black")
             if fit:
-                ax[a].loglog(x[(~np.isnan(y_tot[7])) & (y_tot[7] > 0)],
-                             y_tot[7][(~np.isnan(y_tot[7])) & (y_tot[7] > 0)],
-                             label=f"fit overall", c=colors[a + dir])
+                ax[a].loglog(
+                    x[(~np.isnan(y_tot[7])) & (y_tot[7] > 0)],
+                    y_tot[7][(~np.isnan(y_tot[7])) & (y_tot[7] > 0)],
+                    label=f"fit overall",
+                    c=colors[a + dir],
+                )
             setup_plot(ax[a], xlabel=x_label, ylabel=y_label, a=a)
 
     plotSave(filename, dirName_plot, title, savefig)
@@ -1567,9 +1781,16 @@ def plotWS_all(
                     WST[ind]["coef"][los, :],
                     alpha=0.3,
                     c=colors[ind % 6],
-                    linewidth=.5,
+                    linewidth=0.5,
                 )
-        print(f"len WST at los {los}: ", WST[ind]["coef"][los, :].shape, "len k:", k.shape, "first WST value: ", WST[ind]["coef"][los, 0])
+        print(
+            f"len WST at los {los}: ",
+            WST[ind]["coef"][los, :].shape,
+            "len k:",
+            k.shape,
+            "first WST value: ",
+            WST[ind]["coef"][los, 0],
+        )
         for ind in range(offset, offset + xlength):
             ax[order].plot(
                 k,
@@ -1583,7 +1804,7 @@ def plotWS_all(
             y_tot_error = [np.var(WST[ind]["coef"][:, i]) for i in range(len(WST[ind]["coef"][0, :]))]
             ax[order].errorbar(k, np.mean(WST[ind]["coef"], axis=0), y_tot_error) """
 
-        ax[order].set_yscale('log')
+        ax[order].set_yscale("log")
         ax[order].set_ylabel(ylabels[order])
         ax[order].set_xlabel(xlabels[order])
         # ax[order].legend(loc="lower left")
@@ -1634,25 +1855,33 @@ def plotWS_summary(
         y = dictToPlot["y_medians"]
         y_tot = dictToPlot["y_medians_tot"]
 
-
     std_above = np.zeros_like(y_tot)
     std_below = np.zeros_like(y_tot)
     for i in range(len(y_tot)):
-        above = y[i,:][y[i,:] > y_tot[i]] # y[:, i][y[:, i] > y_tot[i]]
-        below = y[i,:][y[i,:] < y_tot[i]]
-        std_above[i] = np.sqrt(np.mean((above - y_tot[i])**2)) if len(above) > 0 else 0
-        std_below[i] = np.sqrt(np.mean((below - y_tot[i])**2)) if len(below) > 0 else 0
-    
+        above = y[i, :][y[i, :] > y_tot[i]]  # y[:, i][y[:, i] > y_tot[i]]
+        below = y[i, :][y[i, :] < y_tot[i]]
+        std_above[i] = (
+            np.sqrt(np.mean((above - y_tot[i]) ** 2)) if len(above) > 0 else 0
+        )
+        std_below[i] = (
+            np.sqrt(np.mean((below - y_tot[i]) ** 2)) if len(below) > 0 else 0
+        )
+
     for order in range(max_order):  # do the different plots for each order separately
         xlength = coeff_lengths[order + 1]
         a += coeff_lengths[order]
         b = a + xlength
         # print("a: ", a, "b: ", b)
         ax[order].errorbar(
-                x[a:b], y_tot[a:b], yerr=(std_below[a:b], std_above[a:b]), 
-                label=r"Standard deviation", c="darkviolet", alpha=.3, fmt='none',
-            )
-        for i in np.random.randint(low=0, high=len(y[0,:]), size=losToPlot):
+            x[a:b],
+            y_tot[a:b],
+            yerr=(std_below[a:b], std_above[a:b]),
+            label=r"Standard deviation",
+            c="darkviolet",
+            alpha=0.3,
+            fmt="none",
+        )
+        for i in np.random.randint(low=0, high=len(y[0, :]), size=losToPlot):
             # y_means summarized all LOS, because the shape of WST is (3*N_los*N_los, n_coeffs, N_spectrum/2^J)
             # I want to plot the n_coeff y_means array for every different "k" value from the spectrum
             # but i want 1st order coefficients and 2nd order ones on separate plots --> xlength&a
@@ -1667,20 +1896,40 @@ def plotWS_summary(
         ax[order].set_xlabel(xlabels[order])
     ax[1].tick_params(axis="x", labelrotation=90)
 
-        # ax[order].set_yscale("log")
-        # ax[order].legend(loc="lower left")
+    # ax[order].set_yscale("log")
+    # ax[order].legend(loc="lower left")
 
     plotSave(filename, dirName_plot, title, savefig)
 
 
 # ====================================================================================================================== FISHING
 #################################################################################### HOW TO CONSTRAIN
-def plotTogether(x, y, filename, dirName_plot, labels, x_label, y_label, title, loglog, ylim, savefig=False):
+def plotTogether(
+    x,
+    y,
+    filename,
+    dirName_plot,
+    labels,
+    x_label,
+    y_label,
+    title,
+    loglog,
+    ylim,
+    savefig=False,
+):
     plt.figure()
     print(len(y))
     for i in range(len(y)):
-        mask = (True) #(~np.isnan(y[i])) & (y[i] > 0)
-        plt.scatter(x[i][mask], y[i][mask], c=["green", "blueviolet", "red", "dodgerblue"][i], label=labels[i], alpha=.7, lw=1, marker=[".", "*", "+", "x"][i])#, s=2)
+        mask = True  # (~np.isnan(y[i])) & (y[i] > 0)
+        plt.scatter(
+            x[i][mask],
+            y[i][mask],
+            c=["green", "blueviolet", "red", "dodgerblue"][i],
+            label=labels[i],
+            alpha=0.7,
+            lw=1,
+            marker=[".", "*", "+", "x"][i],
+        )  # , s=2)
     plt.ylabel(y_label)
     plt.xlabel(x_label)
     if loglog:
@@ -1691,11 +1940,15 @@ def plotTogether(x, y, filename, dirName_plot, labels, x_label, y_label, title, 
 
     plotSave(filename, dirName_plot, title, savefig)
 
+
 def plotDeviations(
     PSx, PSdevs, WSTx, WSTdevs, filename, dirName_plot, title, savefig=False
 ):
     _, ax = plt.subplots(1, 2, sharey=False, num=1, figsize=(22, 8), clear=True)
-    ylabels = [r"$S_{1/2}/S_{1/2}^{\mathrm{fid}} - 1$", r"$P(k)/P^{\mathrm{fid}}(k) - 1$"]
+    ylabels = [
+        r"$S_{1/2}/S_{1/2}^{\mathrm{fid}} - 1$",
+        r"$P(k)/P^{\mathrm{fid}}(k) - 1$",
+    ]
     xlabels = [r"$(j_1, j_2)$", r"$k$ [s/km]"]
 
     if len(WSTdevs.shape) > 1:
@@ -1703,16 +1956,10 @@ def plotDeviations(
             ax[0].scatter(
                 WSTx, WSTdevs[:, i], c="green", marker="x"
             )  # plot mean wrt "k" of means wrt LOS
-            slope, offset, _,_,_ = stats.linregress(WSTx, WSTdevs[:, i])
-            linApprox = list(map(slope * WSTx + offset, WSTx))
-            ax[0].plot(WSTx, linApprox, c="black")
     else:
         ax[0].scatter(
             WSTx, WSTdevs, c="green", marker="x"
         )  # plot mean wrt "k" of means wrt LOS
-        slope, offset, _,_,_ = stats.linregress(WSTx, WSTdevs)
-        linApprox = list(map(slope * WSTx + offset, WSTx))
-        ax[0].plot(WSTx, linApprox, c="black")
 
     ax[0].set_ylabel(ylabels[0])
     ax[0].set_xlabel(xlabels[0])
@@ -1727,10 +1974,16 @@ def plotDeviations(
             ax[1].scatter(
                 PSx, PSdevs[:, i], c="red", marker="x"
             )  # plot mean wrt "k" of means wrt LOS
+            slope, offset, _, _, _ = stats.linregress(PSx, PSdevs[:, i])
+            linApprox = list(slope * PSx + offset)
+            ax[1].plot(PSx, linApprox, c="black")
     else:
         ax[1].scatter(
             PSx, PSdevs, c="red", marker="x"
         )  # plot mean wrt "k" of means wrt LOS
+        slope, offset, _, _, _ = stats.linregress(PSx, PSdevs)
+        linApprox = list((slope * PSx + offset))
+        ax[1].plot(PSx, linApprox, c="black")
 
     ax[1].set_ylabel(ylabels[1])
     ax[1].set_xlabel(xlabels[1])
@@ -1753,8 +2006,10 @@ def Fisher_ab(dS_dTheta_a, dS_dTheta_b, Cov, H_factor):
     fisher_ab = (
         dS_dTheta_a.T @ term
     )  # (n_params, n_bins) @ (n_bins, n_params) -> (n_params, n_params)
-    
-    print("covinv: ", Cov_inv.shape, "term: ", term.shape, "fisher_ab: ", fisher_ab.shape)
+
+    print(
+        "covinv: ", Cov_inv.shape, "term: ", term.shape, "fisher_ab: ", fisher_ab.shape
+    )
 
     return fisher_ab
 
@@ -1776,10 +2031,10 @@ def getConstrainingPower(stat, stat_prime, param_var, cov_matrix):
 
     # Regularize Fisher matrix to avoid singularity
     # reg = 1e-6 * np.trace(fish) / fish.shape[0]
-    fish_reg = fish # + reg * np.eye(fish.shape[0])
+    fish_reg = fish  # + reg * np.eye(fish.shape[0])
 
     print(fish_reg.shape)
-    if fish_reg.ndim>1:
+    if fish_reg.ndim > 1:
         try:
             fish_inv = np.linalg.inv(fish_reg)
         except np.linalg.LinAlgError:
@@ -1787,7 +2042,7 @@ def getConstrainingPower(stat, stat_prime, param_var, cov_matrix):
         sigma = np.sqrt(np.diag(fish_inv))
     else:
         print("I'm a 1D fish ", fish_reg)
-        fish_inv = 1/fish_reg
+        fish_inv = 1 / fish_reg
         sigma = np.sqrt(fish_inv)
 
     print("dS_dTheta: ", delS_delTheta.shape)
@@ -1817,6 +2072,7 @@ def getConstrainingPower(stat, stat_prime, param_var):
 
     return sigma'''
 
+
 def plotCovCorr(kPk, Pk, kWST, WST, J, dirName_plot, start_time):
     # Precompute covariance matrices from multiple realizations
     # Pk_ensemble shape: (n_realizations, 128)
@@ -1827,19 +2083,18 @@ def plotCovCorr(kPk, Pk, kWST, WST, J, dirName_plot, start_time):
     CorrPk = np.zeros(cov_Pk.shape)
     for i in range(cov_Pk.shape[0]):
         for j in range(cov_Pk.shape[1]):
-            CorrPk[i,j] = cov_Pk[i,j]/np.sqrt(cov_Pk[i,i]*cov_Pk[j,j])
+            CorrPk[i, j] = cov_Pk[i, j] / np.sqrt(cov_Pk[i, i] * cov_Pk[j, j])
 
     CorrWST = np.zeros(cov_WST.shape)
     for i in range(cov_WST.shape[0]):
         for j in range(cov_WST.shape[1]):
-            CorrWST[i,j] = cov_WST[i,j]/np.sqrt(cov_WST[i,i]*cov_WST[j,j])
+            CorrWST[i, j] = cov_WST[i, j] / np.sqrt(cov_WST[i, i] * cov_WST[j, j])
 
     fig, axs = plt.subplots(2, 3, figsize=(18, 13))
     axs = axs.ravel()
 
-    
-    im1 = axs[0].imshow(cov_Pk, cmap='seismic')
-    axs[0].set_title(r'Cov $P(k)$')
+    im1 = axs[0].imshow(cov_Pk, cmap="seismic")
+    axs[0].set_title(r"Cov $P(k)$")
     ticks = get_ticks(len(kPk), 64)
     axs[0].set_xticks(ticks)
     axs[0].set_xticklabels([f"{kPk[i]:.2f}" for i in ticks], rotation=90)
@@ -1847,8 +2102,8 @@ def plotCovCorr(kPk, Pk, kWST, WST, J, dirName_plot, start_time):
     axs[0].set_yticklabels([f"{kPk[i]:.2f}" for i in ticks])
     fig.colorbar(im1, ax=axs[0])
 
-    im2 = axs[1].imshow(cov_WST[:J,:J], cmap='seismic')
-    axs[1].set_title(r'Cov $S_1(j_1)$')
+    im2 = axs[1].imshow(cov_WST[:J, :J], cmap="seismic")
+    axs[1].set_title(r"Cov $S_1(j_1)$")
     ticks = get_ticks(J, 2)
     axs[1].set_xticks(ticks)
     axs[1].set_xticklabels([str(kWST[i]) for i in ticks], rotation=90)
@@ -1857,17 +2112,17 @@ def plotCovCorr(kPk, Pk, kWST, WST, J, dirName_plot, start_time):
     fig.colorbar(im2, ax=axs[1])
 
     s2_len = len(kWST[J:])
-    im3 = axs[2].imshow(cov_WST[J:,J:], cmap='seismic')
-    axs[2].set_title(r'Cov $S_2(j_1,j_2)$')
+    im3 = axs[2].imshow(cov_WST[J:, J:], cmap="seismic")
+    axs[2].set_title(r"Cov $S_2(j_1,j_2)$")
     ticks = get_ticks(s2_len, 4)
     axs[2].set_xticks(ticks)
-    axs[2].set_xticklabels([str(kWST[J+i]) for i in ticks], rotation=90)
+    axs[2].set_xticklabels([str(kWST[J + i]) for i in ticks], rotation=90)
     axs[2].set_yticks(ticks)
-    axs[2].set_yticklabels([str(kWST[J+i]) for i in ticks])
+    axs[2].set_yticklabels([str(kWST[J + i]) for i in ticks])
     fig.colorbar(im3, ax=axs[2])
 
-    im4 = axs[3].imshow(CorrPk, cmap='seismic', vmin=-1, vmax=1)
-    axs[3].set_title(r'Corr $P(k)$')
+    im4 = axs[3].imshow(CorrPk, cmap="seismic", vmin=-1, vmax=1)
+    axs[3].set_title(r"Corr $P(k)$")
     ticks = get_ticks(len(kPk), 64)
     axs[3].set_xticks(ticks)
     axs[3].set_xticklabels([f"{kPk[i]:.2f}" for i in ticks], rotation=90)
@@ -1875,8 +2130,8 @@ def plotCovCorr(kPk, Pk, kWST, WST, J, dirName_plot, start_time):
     axs[3].set_yticklabels([f"{kPk[i]:.2f}" for i in ticks])
     fig.colorbar(im4, ax=axs[3])
 
-    im5 = axs[4].imshow(CorrWST[:J,:J], cmap='seismic', vmin=-1, vmax=1)
-    axs[4].set_title(r'Corr $S_1(j_1)$')
+    im5 = axs[4].imshow(CorrWST[:J, :J], cmap="seismic", vmin=-1, vmax=1)
+    axs[4].set_title(r"Corr $S_1(j_1)$")
     ticks = get_ticks(J, 2)
     axs[4].set_xticks(ticks)
     axs[4].set_xticklabels([str(kWST[i]) for i in ticks], rotation=90)
@@ -1884,17 +2139,18 @@ def plotCovCorr(kPk, Pk, kWST, WST, J, dirName_plot, start_time):
     axs[4].set_yticklabels([str(kWST[i]) for i in ticks])
     fig.colorbar(im5, ax=axs[4])
 
-    im6 = axs[5].imshow(CorrWST[J:,J:], cmap='seismic', vmin=-1, vmax=1)
-    axs[5].set_title(r'Corr $S_2(j_1,j_2)$')
+    im6 = axs[5].imshow(CorrWST[J:, J:], cmap="seismic", vmin=-1, vmax=1)
+    axs[5].set_title(r"Corr $S_2(j_1,j_2)$")
     ticks = get_ticks(s2_len, 4)
     axs[5].set_xticks(ticks)
-    axs[5].set_xticklabels([str(kWST[J+i]) for i in ticks], rotation=90)
+    axs[5].set_xticklabels([str(kWST[J + i]) for i in ticks], rotation=90)
     axs[5].set_yticks(ticks)
-    axs[5].set_yticklabels([str(kWST[J+i]) for i in ticks])
+    axs[5].set_yticklabels([str(kWST[J + i]) for i in ticks])
     fig.colorbar(im6, ax=axs[5])
 
-    #plt.tight_layout()  # Adjust layout to prevent overlap
+    # plt.tight_layout()  # Adjust layout to prevent overlap
     plotSave("covCorr", dirName_plot, "title", savefig=True)
+
 
 def getFish(stat, param_var, n_params):
     """
